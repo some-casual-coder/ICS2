@@ -7,6 +7,7 @@ from .rooms.router import router as rooms_router
 from .discover.router import router as discover_router
 from .user.router import router as user_router
 from .interactions.router import router as interactions_router
+from .recommendations.router import router as recommendations_router
 
 app = FastAPI()
 
@@ -20,4 +21,5 @@ app.include_router(user_router)
 app.include_router(rooms_router)
 app.include_router(discover_router)
 app.include_router(interactions_router)
+app.include_router(recommendations_router)
 app.include_router(embeddings_router)

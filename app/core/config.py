@@ -12,6 +12,8 @@ class Settings(BaseSettings):
     FIREBASE_CREDS_PATH: str
     TMDB_METADATA_DATASET_PATH: str
     TMDB_PLOTS_DATASET_PATH: str
+    QDRANT_URL: str
+    QDRANT_API_KEY: str
 
     @property
     def FIREBASE_CREDS_PATH_ABSOLUTE(self) -> Path:
