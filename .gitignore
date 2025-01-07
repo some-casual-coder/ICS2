@@ -1,0 +1,103 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Virtual environment
+venv/
+env/
+.venv/
+ENV/
+env.bak/
+.venv.bak/
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints
+
+# Python cache files
+*.egg-info/
+.eggs/
+
+# Installed packages and dependency files
+.Python
+*.env
+*.venv
+env/
+venv/
+ENV/
+env.bak/
+.venv.bak/
+pip-log.txt
+pip-delete-this-directory.txt
+*.log
+*.pot
+
+# Database and data files
+*.sql
+*.sqlite
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
+
+# Translations
+*.mo
+*.pot
+
+# Django stuff:
+*.log
+*.pot
+*.pyc
+*.pyo
+*.log
+*.pid
+*.swp
+.idea
+.DS_Store
+.vscode/
+
+# Static files
+staticfiles/
+static/
+
+# Media files
+media/
+
+# IDE specific files
+.vscode/
+.idea/
+
+# Kaggle dataset files
+datasets/
+output/
+
+# Model files
+*.h5
+*.hdf5
+*.keras
+
+# Ignore local .env file
+.env
+
+# Ignore Jupyter Notebook's hidden checkpoints
+.ipynb_checkpoints/
+
+# Temporary files
+*.bak
+*.tmp
+*.swp
+
+# Ignore Jupyter Notebook's kernel and metadata
+.ipynb_*
+
+# Ignore Jupyter Notebook's hidden .ipynb_checkpoints directory
+.ipynb_checkpoints/
