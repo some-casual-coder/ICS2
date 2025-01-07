@@ -18,14 +18,14 @@ client = QdrantClient(
     api_key=qdrant_key
 )
 
-@router.get("/generate_embeddings")
-async def generate_embeddings():
-    """Generate embeddings from movies dataset"""
-    try:
-        result = await process_movies(openai_key, qdrant_url, qdrant_key)
-        return {"message": "Embedding process completed", "result": result}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+# @router.get("/generate_embeddings")
+# async def generate_embeddings():
+#     """Generate embeddings from movies dataset"""
+#     try:
+#         result = await process_movies(openai_key, qdrant_url, qdrant_key)
+#         return {"message": "Embedding process completed", "result": result}
+#     except Exception as e:
+#         raise HTTPException(status_code=500, detail=str(e))
     
 @router.post("/recommendation_candidates")
 async def recommend_movies(preferences: GroupPreferencesModel):
