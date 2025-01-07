@@ -1,3 +1,4 @@
+import os
 import numpy as np
 import pandas as pd
 
@@ -26,7 +27,11 @@ class DataProcessor:
             'popularity': 'float32'
         }
         
-        plots_df = pd.read_csv(Config.PLOTS_FILE, dtype={'id': 'int32'})
-        metadata_df = pd.read_csv(Config.METADATA_FILE, dtype=dtypes)
+        script_dir = os.path.dirname(os.path.realpath(__file__))  # Get the directory of the current script
+        plots_path = os.path.join(script_dir, Config.PLOTS_FILE)
+        metadata_path = os.path.join(script_dir, Config.METADATA_FILE)
+        
+        plots_df = pd.read_csv(plots_path, dtype={'id': 'int32'})
+        metadata_df = pd.read_csv(metadata_path, dtype=dtypes)
         
         return plots_df.merge(metadata_df, on='id')
