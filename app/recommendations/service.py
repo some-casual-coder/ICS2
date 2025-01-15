@@ -1,3 +1,4 @@
+import traceback
 from fastapi import HTTPException
 from qdrant_client import QdrantClient
 from typing import List, Dict, Tuple
@@ -16,6 +17,7 @@ import logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+
 class RecommendationService:
     def __init__(self, model_path: str):
         self.qdrant_client = QdrantClient(
@@ -26,7 +28,8 @@ class RecommendationService:
         self.model = load_two_tower_model(model_path)
         if self.model is None:
             logger.error("Model loading failed")
-            raise Exception("Failed to load recommendation model. Check logs for details.")
+            raise Exception(
+                "Failed to load recommendation model. Check logs for details.")
 
     async def aggregate_group_genre_weights(self, user_ids: List[str]) -> Dict[str, float]:
         """Aggregate genre preferences for all users in a group"""
@@ -54,15 +57,31 @@ class RecommendationService:
 
         return aggregated_weights
 
+    async def create_group_preferences(
+        self,
+        user_ids: List[str],
+        runtime_pref: str,
+        language_pref: List[str],
+        min_rating: float,
+        year_range: Tuple[int, int]
+    ) -> GroupPreferences:
+        """Create GroupPreferences with aggregated genre weights"""
+        genre_weights = await self.aggregate_group_genre_weights(user_ids)
+
+        return GroupPreferences(
+            runtime_preference=runtime_pref,
+            genre_weights=genre_weights,
+            language_preference=language_pref,
+            min_rating=min_rating,
+            release_year_range=year_range
+        )
+
     async def get_group_recommendations(
         self,
         movie_ids: List[int],
         preferences: GroupPreferences,
         limit: int = 10
     ) -> List[MovieRecommendation]:
-        if self.model is None:
-            raise HTTPException(status_code=500, detail="Model not loaded")
-
         try:
             # Get candidates with embeddings
             candidates_data = await generate_candidates_for_two_tower(
@@ -79,9 +98,33 @@ class RecommendationService:
             # Prepare group features
             group_features = prepare_group_features(preferences)
 
+            # Repeat group features to match movie features shape
+            num_movies = movie_features.shape[0]
+            group_features_repeated = np.repeat(
+                group_features, num_movies, axis=0)
+
+            # Debug shapes
+            logger.info(f"Movie features shape: {movie_features.shape}")
+            logger.info(
+                f"Group features shape: {group_features_repeated.shape}")
+
             # Get model predictions
             similarity_scores = self.model.predict(
-                [movie_features, group_features])
+                [movie_features, group_features_repeated])
+
+            # Debug similarity scores
+            logger.info(f"Similarity scores shape: {similarity_scores.shape}")
+            logger.info(f"Similarity scores type: {type(similarity_scores)}")
+            logger.info(f"Similarity scores sample: {similarity_scores[:5]}")
+
+            # Convert ragged tensor to dense and get mean of each row
+            similarity_scores = similarity_scores.to_tensor().numpy()
+            similarity_scores = np.mean(similarity_scores, axis=1)
+
+            logger.info(
+                f"Processed similarity scores shape: {similarity_scores.shape}")
+            logger.info(
+                f"Processed similarity scores sample: {similarity_scores[:5]}")
 
             # Combine scores and create recommendations
             recommendations = []
@@ -90,6 +133,7 @@ class RecommendationService:
                 similarity_scores
             ):
                 metadata = data['metadata']
+                logger.info(f"Processing movie {movie_id} with metadata: {metadata}")
                 final_score = combine_scores(
                     hnsw_score=data['similarity_scores'],
                     model_score=float(model_score),
@@ -109,7 +153,6 @@ class RecommendationService:
             recommendations.sort(key=lambda x: x.final_score, reverse=True)
             top_recommendations = recommendations[:limit]
 
-            # Format for response if needed
             return {
                 'total_candidates': len(recommendations),
                 'original_movies': candidates_data['original_movies'],
@@ -127,4 +170,6 @@ class RecommendationService:
             }
 
         except Exception as e:
+            logger.error(f"Error in get_group_recommendations: {str(e)}")
+            logger.error(f"Full traceback: {traceback.format_exc()}")
             raise HTTPException(status_code=500, detail=str(e))

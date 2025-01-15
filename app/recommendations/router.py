@@ -1,7 +1,7 @@
 from pathlib import Path
 from fastapi import APIRouter, Query
 from typing import List
-from .models import GroupPreferences
+from .models import CreateGroupPreferencesRequest, GroupPreferences, RecommendationRequest
 from .service import RecommendationService
 
 router = APIRouter(prefix="/recommendations", tags=["recommendations"])
@@ -13,35 +13,24 @@ print(f"Model path: {MODEL_PATH} -----------------------------------------------
 recommendation_service = RecommendationService(model_path=MODEL_PATH)
 
 @router.post("/group")
-async def get_recommendations(
-    preferences: GroupPreferences,
-    movie_ids: List[int] = Query(...),
-    limit: int = Query(10, ge=1, le=50)
-):
+async def get_recommendations(request: RecommendationRequest):
     """Get group recommendations based on movie preferences and history"""
     recommendations = await recommendation_service.get_group_recommendations(
-        movie_ids=movie_ids,
-        preferences=preferences,
-        limit=limit
+        movie_ids=request.movie_ids,
+        preferences=request.preferences,
+        limit=10  # You can make this configurable if needed
     )
     return {"recommendations": recommendations}
 
 
 @router.post("/group/preferences")
-async def create_group_preferences(
-    user_ids: List[str],
-    runtime: str = Query(..., description="short/medium/long"),
-    languages: List[str] = Query(...),
-    min_rating: float = Query(..., ge=0, le=10),
-    start_year: int = Query(...),
-    end_year: int = Query(...)
-):
-    """Create group preferences from user IDs"""
+async def create_group_preferences(request: CreateGroupPreferencesRequest):
+    """Create group preferences from user IDs and preferences"""
     group_prefs = await recommendation_service.create_group_preferences(
-        user_ids=user_ids,
-        runtime_pref=runtime,
-        language_pref=languages,
-        min_rating=min_rating,
-        year_range=(start_year, end_year)
+        user_ids=request.user_ids,
+        runtime_pref=request.runtime,
+        language_pref=request.languages,
+        min_rating=request.min_rating,
+        year_range=(request.start_year, request.end_year)
     )
     return group_prefs
