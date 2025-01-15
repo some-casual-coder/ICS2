@@ -34,6 +34,7 @@ pip-log.txt
 pip-delete-this-directory.txt
 *.log
 *.pot
+serviceAccount.json
 
 # Database and data files
 *.sql
