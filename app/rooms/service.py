@@ -59,6 +59,24 @@ async def update_room_preferences(room_id: str, preferences: RoomPreferences) ->
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
     
+async def get_room_preferences(room_id: str) -> Optional[RoomPreferences]:
+    try:
+        room_ref = db.collection('rooms').document(room_id)
+        room_doc = room_ref.get()
+        
+        if not room_doc.exists:
+            raise HTTPException(status_code=404, detail="Room not found")
+            
+        room_data = room_doc.to_dict()
+        preferences_data = room_data.get('preferences')
+        
+        if not preferences_data:
+            return None
+            
+        return RoomPreferences(**preferences_data)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    
 async def delete_room(room_id: str) -> bool:
     try:
         room_ref = db.collection('rooms').document(room_id)
