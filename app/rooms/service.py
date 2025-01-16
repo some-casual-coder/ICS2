@@ -6,9 +6,8 @@ from .models import Room, RoomPreferences
 import uuid
 from datetime import datetime
 
-async def create_room(creator_id: str, preferences: Optional[RoomPreferences] = None) -> str:
+async def create_room(creator_id: str, room_id: str, preferences: Optional[RoomPreferences] = None) -> str:
     try:
-        room_id = str(uuid.uuid4())
         room_ref = db.collection('rooms').document(room_id)
         
         room_data = {

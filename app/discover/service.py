@@ -84,13 +84,17 @@ class DiscoverService:
             10752: "War",
             37: "Western"
         }
-        
-        target_genres = [genre_map[gid] for gid in genre_ids if gid in genre_map]
-        
-        def has_genres(movie_genres, target_genres):
-            return all(any(t.lower() in g.lower() for g in movie_genres) for t in target_genres)
-        
-        return df[df['genres'].apply(lambda x: has_genres(x, target_genres))]
+        target_genres = []
+        for gid in genre_ids:
+            if gid in genre_map:
+                target_genres.append(genre_map[gid])
+            else:
+                print(f"Warning: Genre ID {gid} not found in genre_map")
+    
+        filtered_df = df[df['genres'].apply(lambda x: any(t in x for t in target_genres))]
+        filtered_df = filtered_df.drop_duplicates(subset=['id'])
+    
+        return filtered_df, target_genres
 
     async def get_discover_movies(
         self,
@@ -102,6 +106,11 @@ class DiscoverService:
         """Get filtered movies based on preferences"""
         try:
             df = self.metadata_df.copy()
+
+            required_columns = ['id', 'popularity', 'vote_average']
+            missing_columns = [col for col in required_columns if col not in df.columns]
+            if missing_columns:
+                raise ValueError(f"Missing required columns: {missing_columns}")
             
             # Apply filters
             if filters.runtime_preference:
@@ -117,14 +126,36 @@ class DiscoverService:
                 df = self._filter_by_years(df, filters.release_year_range)
             
             if filters.genres:
-                df = self._filter_by_genres(df, filters.genres)
+                df, target_genres = self._filter_by_genres(df, filters.genres)
             
             # Exclude watched movies
             if filters.exclude_watched and watched_movies:
                 df = df[~df['id'].isin(watched_movies)]
             
-            # Sort by popularity and rating
-            df = df.sort_values(['popularity', 'vote_average'], ascending=[False, False])
+            if df.empty:
+                print("\nDataFrame is empty after filters!")
+                return {
+                    "page": page,
+                    "total_pages": 0,
+                    "total_results": 0,
+                    "results": []
+                }
+
+            df['keywords'] = df['keywords'].fillna('[]')
+            def get_genre_match_score(genres, target_genres):
+                all_match = all(t in genres for t in target_genres)
+                some_match = any(t in genres for t in target_genres)
+                return 2 if all_match else 1 if some_match else 0
+            
+            if filters.genres:
+                df['genre_match_score'] = df['genres'].apply(lambda x: get_genre_match_score(x, target_genres))
+                df = df.sort_values(['genre_match_score', 'popularity', 'vote_average'], ascending=[False, False, False])
+                df = df.drop(columns=['genre_match_score'])
+                print("genre score applied")
+            else:
+                # Default sorting if no genre filter
+                print("not applied")
+                df = df.sort_values(['popularity', 'vote_average'], ascending=[False, False])
             
             # Paginate results
             total_results = len(df)
@@ -137,7 +168,6 @@ class DiscoverService:
             
             # Format results
             results = page_df.to_dict('records')
-            
             return {
                 "page": page,
                 "total_pages": total_pages,
@@ -146,4 +176,5 @@ class DiscoverService:
             }
             
         except Exception as e:
+            print(f"Final error: {type(e)} - {str(e)}")
             raise HTTPException(status_code=500, detail=str(e))

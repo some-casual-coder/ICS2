@@ -9,7 +9,7 @@ discover_service = DiscoverService()
 @router.get("/movies")
 async def discover_movies(
     runtime: Optional[str] = None,
-    languages: Optional[List[str]] = Query(None),
+    languages: Optional[str] = None,
     min_rating: Optional[float] = None,
     start_year: Optional[int] = None,
     end_year: Optional[int] = None,
@@ -22,9 +22,10 @@ async def discover_movies(
     """
     Custom discover endpoint using local dataset
     """
+    language_list = languages.split(',') if languages else None
     filters = DiscoverFilters(
         runtime_preference=runtime,
-        language_preference=languages,
+        language_preference=language_list,
         min_rating=min_rating,
         release_year_range=(start_year, end_year) if start_year and end_year else None,
         genres=genres,

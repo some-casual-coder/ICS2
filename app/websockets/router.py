@@ -5,7 +5,9 @@ import uuid
 import random
 import string
 import sys
-from fastapi import APIRouter, FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect
+from ..rooms.service import create_room, join_room, update_room_preferences
+
 
 logging.basicConfig(
     level=logging.INFO,
@@ -86,6 +88,8 @@ async def websocket_endpoint(websocket: WebSocket, user_name: str):
                     },
                     "pending_users": {}
                 }
+
+                room_id = await create_room(user_id, room_id)
                 manager.user_to_room[user_id] = room_code
                 
                 await websocket.send_json({
@@ -128,6 +132,8 @@ async def websocket_endpoint(websocket: WebSocket, user_name: str):
                         user_data = room["pending_users"].pop(target_user_id)
                         room["users"][target_user_id] = user_data
                         manager.user_to_room[target_user_id] = room_code
+
+                        await join_room(room["id"], target_user_id)
                         
                         # Notify all users in room
                         await manager.broadcast_to_room(room_code, {

@@ -1,7 +1,7 @@
-from typing import Dict, List
+from typing import Dict, List, Optional
 from fastapi import HTTPException
 from ..core.firebase import db
-from .models import UserPreferences, UserSettings
+from .models import Era, LanguagePreference, MovieLength, UserPreferences, UserSettings
 
 async def get_user_genres(user_id: str) -> List[Dict[str, int]]:
     try:
@@ -24,6 +24,25 @@ async def get_user_liked_movies(user_id: str) -> Dict:
             for movie_id, data in ratings.items() 
             if data['rating'] > 0
         }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    
+async def get_user_settings(user_id: str) -> Optional[UserSettings]:
+    try:
+        user_ref = db.collection('user_preferences').document(user_id)
+        user_doc = user_ref.get()
+        
+        if not user_doc.exists:
+            return None
+            
+        settings_data = user_doc.to_dict().get('settings', {})
+        
+        return UserSettings(
+            user_id=user_id,
+            movie_length=[MovieLength(length) for length in settings_data.get('movie_length', [])],
+            preferred_eras=[Era(era) for era in settings_data.get('preferred_eras', [])],
+            language_preference=LanguagePreference(settings_data.get('language_preference'))
+        )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
     

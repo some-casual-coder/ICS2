@@ -6,8 +6,8 @@ from .service import create_room, delete_room, join_room, update_room_preference
 router = APIRouter(prefix="/rooms", tags=["rooms"])
 
 @router.post("/create")
-async def create_new_room(creator_id: str, preferences: Optional[RoomPreferences] = None):
-    room_id = await create_room(creator_id, preferences)
+async def create_new_room(creator_id: str, room_id: str, preferences: Optional[RoomPreferences] = None):
+    room_id = await create_room(creator_id, room_id, preferences)
     return {"room_id": room_id}
 
 @router.post("/{room_id}/join")
