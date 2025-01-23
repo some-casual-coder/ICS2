@@ -1,5 +1,6 @@
 import traceback
 from fastapi import HTTPException
+import pandas as pd
 from qdrant_client import QdrantClient
 from typing import List, Dict, Tuple
 import numpy as np
@@ -16,6 +17,9 @@ import logging
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+tmdb_df = pd.read_csv('datasets/tmdb_movie_metadata_v2.csv')
+tmdb_df.set_index('id', inplace=True)
 
 
 class RecommendationService:
@@ -79,14 +83,16 @@ class RecommendationService:
     async def get_group_recommendations(
         self,
         movie_ids: List[int],
+        not_interested_ids: List[int],
         preferences: GroupPreferences,
-        limit: int = 10
+        limit: int = 20
     ) -> List[MovieRecommendation]:
         try:
             # Get candidates with embeddings
             candidates_data = await generate_candidates_for_two_tower(
                 client=self.qdrant_client,
-                movie_ids=movie_ids
+                movie_ids=movie_ids,
+                not_interested_ids=not_interested_ids
             )
 
             # Prepare movie features for model
@@ -103,28 +109,13 @@ class RecommendationService:
             group_features_repeated = np.repeat(
                 group_features, num_movies, axis=0)
 
-            # Debug shapes
-            logger.info(f"Movie features shape: {movie_features.shape}")
-            logger.info(
-                f"Group features shape: {group_features_repeated.shape}")
-
             # Get model predictions
             similarity_scores = self.model.predict(
                 [movie_features, group_features_repeated])
 
-            # Debug similarity scores
-            logger.info(f"Similarity scores shape: {similarity_scores.shape}")
-            logger.info(f"Similarity scores type: {type(similarity_scores)}")
-            logger.info(f"Similarity scores sample: {similarity_scores[:5]}")
-
             # Convert ragged tensor to dense and get mean of each row
             similarity_scores = similarity_scores.to_tensor().numpy()
             similarity_scores = np.mean(similarity_scores, axis=1)
-
-            logger.info(
-                f"Processed similarity scores shape: {similarity_scores.shape}")
-            logger.info(
-                f"Processed similarity scores sample: {similarity_scores[:5]}")
 
             # Combine scores and create recommendations
             recommendations = []
@@ -133,7 +124,6 @@ class RecommendationService:
                 similarity_scores
             ):
                 metadata = data['metadata']
-                logger.info(f"Processing movie {movie_id} with metadata: {metadata}")
                 final_score = combine_scores(
                     hnsw_score=data['similarity_scores'],
                     model_score=float(model_score),
@@ -150,25 +140,40 @@ class RecommendationService:
                 ))
 
             # Sort and limit results
+            # In your recommendations processing
+            logger.info(f"Total recommendations before sorting: {len(recommendations)}")
             recommendations.sort(key=lambda x: x.final_score, reverse=True)
+            logger.info(f"Top score: {recommendations[0].final_score if recommendations else 'No recommendations'}")
             top_recommendations = recommendations[:limit]
+            logger.info(f"Number of recommendations after limit: {len(top_recommendations)}")
+
+            # Get poster paths from the dataset
+            recommendations_with_posters = []
+            for rec in top_recommendations:
+                movie_data = {
+                    'movie_id': rec.movie_id,
+                    'title': rec.metadata['title'],
+                    'genres': rec.metadata['genres'],
+                    'final_score': round(rec.final_score, 3),
+                    'hnsw_score': round(rec.hnsw_score, 3),
+                    'model_score': round(rec.model_score, 3)
+                }
+                if rec.movie_id in tmdb_df.index:
+                    poster_path = tmdb_df.loc[rec.movie_id, 'poster_path']
+                    vote_average = tmdb_df.loc[rec.movie_id, 'vote_average']
+                    if pd.notna(poster_path):
+                        movie_data['poster_path'] = poster_path
+                        movie_data['vote_average'] = vote_average
+
+                recommendations_with_posters.append(movie_data)
+                
+            logger.info(f"Number of recommendations with posters after limit: {len(recommendations_with_posters)}")
 
             return {
                 'total_candidates': len(recommendations),
                 'original_movies': candidates_data['original_movies'],
-                'recommendations': [
-                    {
-                        'movie_id': rec.movie_id,
-                        'title': rec.metadata['title'],
-                        'genres': rec.metadata['genres'],
-                        'final_score': round(rec.final_score, 3),
-                        'hnsw_score': round(rec.hnsw_score, 3),
-                        'model_score': round(rec.model_score, 3)
-                    }
-                    for rec in top_recommendations
-                ]
+                'recommendations': recommendations_with_posters
             }
-
         except Exception as e:
             logger.error(f"Error in get_group_recommendations: {str(e)}")
             logger.error(f"Full traceback: {traceback.format_exc()}")

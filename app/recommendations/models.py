@@ -42,4 +42,5 @@ class GroupPreferencesRequest(BaseModel):
 
 class RecommendationRequest(BaseModel):
     movie_ids: List[int]
+    not_interested_ids: List[int]
     preferences: GroupPreferencesRequest

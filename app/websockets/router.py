@@ -6,6 +6,8 @@ import random
 import string
 import sys
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
+
+from app.websockets.connection_manager import ConnectionManager
 from ..rooms.service import create_room, join_room, update_room_preferences
 
 
@@ -20,31 +22,6 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/ws", tags=["websockets"])
-
-class ConnectionManager:
-    def __init__(self):
-        self.active_connections: Dict[str, WebSocket] = {}
-        self.rooms: Dict[str, dict] = {}
-        self.user_to_room: Dict[str, str] = {}
-
-    def generate_room_code(self, length: int = 6) -> str:
-        return ''.join(random.choices(string.ascii_uppercase + string.digits, k=length))
-
-    async def connect(self, user_id: str, websocket: WebSocket):
-        await websocket.accept()
-        self.active_connections[user_id] = websocket
-        logger.info(f"User {user_id} connected")
-
-    def disconnect(self, user_id: str):
-        if user_id in self.active_connections:
-            del self.active_connections[user_id]
-        logger.info(f"User {user_id} disconnected")
-
-    async def broadcast_to_room(self, room_code: str, message: dict, exclude_user: str = None):
-        if room_code in self.rooms:
-            for user_id in self.rooms[room_code]["users"]:
-                if user_id != exclude_user and user_id in self.active_connections:
-                    await self.active_connections[user_id].send_json(message)
 
 manager = ConnectionManager()
 
@@ -130,10 +107,22 @@ async def websocket_endpoint(websocket: WebSocket, user_name: str):
                     room = manager.rooms[room_code]
                     if user_id == room["host"] and target_user_id in room["pending_users"]:
                         user_data = room["pending_users"].pop(target_user_id)
+                                    # Add the progress tracking fields
+                        user_data.update({
+                            "status": "joined",
+                            "swipe_progress": 0,
+                            "total_movies": 0
+                        })
+                        
                         room["users"][target_user_id] = user_data
                         manager.user_to_room[target_user_id] = room_code
 
                         await join_room(room["id"], target_user_id)
+
+                        await manager.send_personal_message(target_user_id, {
+                            "action": "approve_user",
+                            "room_data": room
+                        })
                         
                         # Notify all users in room
                         await manager.broadcast_to_room(room_code, {
@@ -214,6 +203,7 @@ async def websocket_endpoint(websocket: WebSocket, user_name: str):
                         room = manager.rooms[room_code]
                         if user_id in room["users"]:
                             room["users"][user_id]["status"] = new_status
+                            logger.info(f"Status update to {new_status}")
                             await manager.broadcast_to_room(
                                 room_code, 
                                 {
@@ -225,6 +215,7 @@ async def websocket_endpoint(websocket: WebSocket, user_name: str):
                             )
 
             elif action == "update_progress":
+                logger.info(f"Start Progress update to {room_code}")
                 room_code = manager.user_to_room.get(user_id)
                 if room_code:
                     room = manager.rooms[room_code]
@@ -241,6 +232,8 @@ async def websocket_endpoint(websocket: WebSocket, user_name: str):
                             room["users"][user_id]["status"] = "completed"
                         else:
                             room["users"][user_id]["status"] = "swiping"
+
+                        logger.info(f"Progress update to {room_code}")
 
                         await manager.broadcast_to_room(
                             room_code,

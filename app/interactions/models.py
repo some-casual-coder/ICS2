@@ -32,3 +32,10 @@ class BatchInteraction(BaseModel):
     user_id: str
     room_id: Optional[str]
     swipes: List[BatchSwipe]
+
+class RoomStatistics(BaseModel):
+    room_id: str
+    interested_movie_ids: List[int] = []
+    not_interested_movie_ids: List[int] = []
+    watched_movie_ids: List[int] = []
+    not_sure_movie_ids: List[int] = []

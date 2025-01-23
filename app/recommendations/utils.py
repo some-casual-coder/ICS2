@@ -44,9 +44,6 @@ def combine_scores(
     """
     Combine HNSW similarity scores with model predictions and preference bonuses.
     """
-    # Add debug logging
-    logger.info(f"Combining scores for movie with metadata: {metadata}")
-
     # Base score combination
     combined_score = (
         weights['hnsw'] * hnsw_score +
@@ -81,7 +78,4 @@ def combine_scores(
     # Add weighted bonus
     final_score = combined_score + \
         (weights['preference_bonus'] * preference_bonus)
-
-    logger.info(
-        f"Final score components: hnsw={hnsw_score}, model={model_score}, bonus={preference_bonus}")
     return final_score

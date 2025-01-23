@@ -7,7 +7,7 @@ from .service import RecommendationService
 router = APIRouter(prefix="/recommendations", tags=["recommendations"])
 
 ROOT_DIR = Path(__file__).resolve().parent.parent.parent
-MODEL_PATH = str(ROOT_DIR / "best_two_tower_model.keras")
+MODEL_PATH = str(ROOT_DIR / "best_two_tower_model_v2.keras")
 print(f"Model path: {MODEL_PATH} -----------------------------------------------------------------------")
 
 recommendation_service = RecommendationService(model_path=MODEL_PATH)
@@ -17,8 +17,9 @@ async def get_recommendations(request: RecommendationRequest):
     """Get group recommendations based on movie preferences and history"""
     recommendations = await recommendation_service.get_group_recommendations(
         movie_ids=request.movie_ids,
+        not_interested_ids=request.not_interested_ids,
         preferences=request.preferences,
-        limit=10  # You can make this configurable if needed
+        limit=20
     )
     return {"recommendations": recommendations}
 

@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from .models import BatchInteraction, MovieInteraction
+from .models import BatchInteraction, MovieInteraction, RoomStatistics
 from .service import InteractionService
 
 router = APIRouter(prefix="/interactions", tags=["interactions"])
@@ -25,3 +25,9 @@ async def record_batch_swipe_actions(batch: BatchInteraction):
         "status": "success",
         "message": f"Recorded {len(batch.swipes)} interactions"
     }
+
+@router.get("/rooms/{room_id}/stats")
+async def get_room_statistics(room_id: str):
+    """Get aggregated movie interactions for a room"""
+    stats = await interaction_service.get_room_stats(room_id)
+    return stats

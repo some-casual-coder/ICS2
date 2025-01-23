@@ -81,7 +81,7 @@ def process_movies(openai_api_key, qdrant_url, qdrant_api_key):
 def get_movie_vector(movie_id, client:QdrantClient):
     # Retrieve points by IDs
     points = client.retrieve(
-        collection_name="movie_embeddings",
+        collection_name="movie_embeddings_v2",
         ids=[movie_id],
         with_payload=True,
         with_vectors=True,
@@ -98,6 +98,7 @@ def get_movie_vector(movie_id, client:QdrantClient):
 async def generate_candidates_for_two_tower(
     client: QdrantClient,
     movie_ids: List[int],
+    not_interested_ids: List[int],
     num_total_candidates: int = 200,
 ) -> Dict:
     """
@@ -110,7 +111,7 @@ async def generate_candidates_for_two_tower(
     group_vectors = []
     for movie_id in movie_ids:
         points = client.retrieve(
-            collection_name="movie_embeddings",
+            collection_name="movie_embeddings_v2",
             ids=[movie_id],
             with_vectors=True
         )
@@ -124,7 +125,7 @@ async def generate_candidates_for_two_tower(
     # First pass: Get initial candidates
     for vector in group_vectors:
         results = client.search(
-            collection_name="movie_embeddings",
+            collection_name="movie_embeddings_v2",
             query_vector=vector,
             limit=candidates_per_query,
             with_payload=True,
@@ -132,7 +133,7 @@ async def generate_candidates_for_two_tower(
         )
         
         for result in results:
-            if result.id not in seen_movies:
+            if result.id not in seen_movies and result.id not in not_interested_ids:
                 seen_movies.add(result.id)
                 candidates[result.id] = {
                     'vector': result.vector,
