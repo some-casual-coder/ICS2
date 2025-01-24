@@ -102,7 +102,7 @@ class TwoTowerModel(tf.keras.Model):
         hidden_dims=[512, 256],
         num_heads=4,
         dropout_rate=0.3,
-        temperature=0.05,
+        temperature=0.5,
         l2_reg=1e-5,
         **kwargs
     ):
@@ -121,17 +121,42 @@ class TwoTowerModel(tf.keras.Model):
 
     def call(self, inputs, training=False):
         movie_input, group_input = inputs
-        
+    
         movie_embedding = self.movie_tower(movie_input, training=training)
         group_embedding = self.group_tower(group_input, training=training)
-        
+    
+        # Add logging
+        tf.print("Movie embedding stats:", 
+             tf.reduce_mean(movie_embedding), 
+             tf.reduce_min(movie_embedding), 
+             tf.reduce_max(movie_embedding))
+        tf.print("Group embedding stats:", 
+             tf.reduce_mean(group_embedding), 
+             tf.reduce_min(group_embedding), 
+             tf.reduce_max(group_embedding))
+    
         normalized_movie_emb = tf.math.l2_normalize(movie_embedding, axis=1)
         normalized_group_emb = tf.math.l2_normalize(group_embedding, axis=1)
-        
+    
         similarity = tf.matmul(normalized_movie_emb, normalized_group_emb, transpose_b=True)
+    
+        # Log raw similarity
+        tf.print("Raw similarity stats:", 
+             tf.reduce_mean(similarity), 
+             tf.reduce_min(similarity), 
+             tf.reduce_max(similarity))
+    
         similarity = similarity / self.temperature
-        similarity = similarity - tf.reduce_max(similarity, axis=1, keepdims=True)
-        
+    
+        # Log after temperature
+        tf.print("After temperature stats:", 
+             tf.reduce_mean(similarity), 
+             tf.reduce_min(similarity), 
+             tf.reduce_max(similarity))
+    
+        # similarity = similarity - tf.reduce_max(similarity, axis=1, keepdims=True)
+        similarity = tf.nn.sigmoid(similarity)
+    
         return similarity
 
     def get_config(self):

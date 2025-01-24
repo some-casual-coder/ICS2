@@ -1,14 +1,14 @@
 GENRE_CONFIG = {
     'genre_weights': {
-        'Drama': 0.0,
-        'Comedy': 0.0,
-        'Thriller': 0.0,
-        'Action': 0.0,
-        'Romance': 0.0,
-        'Horror': 0.0,
-        'Adventure': 0.0,
-        'Crime': 0.0,
-        'Family': 0.0
+        'Drama': 0.5,
+        'Comedy': 0.5,
+        'Thriller': 0.5,
+        'Action': 0.5,
+        'Romance': 0.5,
+        'Horror': 0.5,
+        'Adventure': 0.5,
+        'Crime': 0.5,
+        'Family': 0.5
     }
 }
 
